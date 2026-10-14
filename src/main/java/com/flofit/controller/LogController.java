@@ -1,0 +1,11 @@
+package com.flofit.controller;
+import com.flofit.model.DailyLog; import com.flofit.repository.DailyLogRepository; import org.springframework.http.HttpStatus; import org.springframework.web.bind.annotation.*; import org.springframework.web.server.ResponseStatusException; import java.time.LocalDate; import java.util.*;
+@RestController @RequestMapping("/api/logs")
+public class LogController {
+ private final DailyLogRepository repo; public LogController(DailyLogRepository r){repo=r;}
+ @GetMapping public List<DailyLog> all(@RequestParam(required=false) String from,@RequestParam(required=false) String to){if(from!=null&&to!=null)return repo.findByDateBetweenOrderByDateDesc(parse(from),parse(to));return repo.findAllByOrderByDateDesc();}
+ @GetMapping("/today") public DailyLog today(@RequestParam(required=false) String date){return repo.findByDate(date==null||date.isBlank()?LocalDate.now():parse(date)).orElse(null);}
+ @PostMapping public DailyLog save(@RequestBody Map<String,Object> b){LocalDate d=parse(String.valueOf(b.getOrDefault("date","")));DailyLog l=repo.findByDate(d).orElse(new DailyLog());l.setDate(d);l.setEnergy(pick(b,"energy","medium","low","medium","high"));l.setMood(pick(b,"mood","calm","happy","calm","sad","irritated","anxious","other"));l.setCramps(pick(b,"cramps","none","none","mild","moderate","severe"));l.setFatigue(pick(b,"fatigue","none","none","mild","moderate","severe"));l.setBloating(pick(b,"bloating","none","none","mild","moderate","severe"));l.setFlow(pick(b,"flow","none","none","spotting","light","medium","heavy"));l.setHeadache(Boolean.TRUE.equals(b.get("headache")));l.setDizziness(Boolean.TRUE.equals(b.get("dizziness")));String n=String.valueOf(b.getOrDefault("notes",""));l.setNotes(n.substring(0,Math.min(500,n.length())));return repo.save(l);}
+ private String pick(Map<String,Object>b,String k,String fallback,String...allowed){String v=String.valueOf(b.getOrDefault(k,fallback)).toLowerCase();for(String a:allowed)if(a.equals(v))return v;return fallback;}
+ private LocalDate parse(String s){try{return LocalDate.parse(s);}catch(Exception e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Please provide a valid date in YYYY-MM-DD format.");}}
+}
